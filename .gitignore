@@ -1,0 +1,17 @@
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+
+# IDE
+.idea/
+*.iml
+*.iws
+
+# Logs
+*.log
+
+# Output files
+analysis_results.txt
