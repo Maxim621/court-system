@@ -1,0 +1,9 @@
+
+=== Analysis Results ===
+File: legal_document.txt
+Total words: 16
+witness: 1
+law: 1
+evidence: 1
+judge: 1
+court: 1
