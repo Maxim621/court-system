@@ -5,7 +5,7 @@ import org.example.courtsystem.exceptions.*;
 import org.example.courtsystem.generics.CaseArchive;
 import org.example.courtsystem.generics.EvidenceProcessor;
 import org.example.courtsystem.generics.LegalContainer;
-import org.example.courtsystem.interfaces.CaseProcessor;
+import org.example.courtsystem.interfaces.*;
 import org.example.courtsystem.model.CaseStatus;
 import org.example.courtsystem.model.CourtType;
 import org.example.courtsystem.model.EvidenceType;
@@ -23,6 +23,9 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.util.*;
+
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 // Main class demonstrating the court case simulation with full exception handling
 public class Main {
@@ -111,21 +114,14 @@ public class Main {
             throws LawyerUnavailableException, DocumentProcessingException {
 
         logger.info("\nCASE PREPARATION");
-
-        // Legal team assembly
         firm.hireLawyer(defenseAttorney);
         logger.info("Prosecutor assigned: {}", prosecutor.getName());
 
-        // Create case
         ConcreteCase fraudCase = new ConcreteCase("U.S. v. Mike Ross", defendant, defenseAttorney);
         logger.info("Case filed: {} ({} days maximum duration)",
                 fraudCase.getTitle(), MAX_CASE_DURATION_DAYS);
 
-        // Evidence handling with proper validation
         logger.info("\nEVIDENCE GATHERING");
-        List<Evidence> validEvidences = new ArrayList<>();
-
-        // Create evidences with specific types
         Evidence[] evidencesToProcess = {
                 new Evidence("Harvard Law records", EvidenceType.DOCUMENT),
                 new Evidence("Email correspondence with Jessica Pearson", EvidenceType.DIGITAL),
@@ -133,37 +129,35 @@ public class Main {
                 new Evidence("Signed affidavit", EvidenceType.WITNESS_STATEMENT)
         };
 
-        // Process each piece of evidence
-        for (Evidence evidence : evidencesToProcess) {
-            try {
-                // Explicit validation check
-                if (evidence.getDescription().toLowerCase().contains("forged")) {
-                    throw new InvalidEvidenceException(
-                            evidence.getDescription(),
-                            "Forged document detected"
-                    );
-                }
+        // Replacing a loop with a Stream API
+        List<Evidence> validEvidences = Stream.of(evidencesToProcess)
+                .peek(evidence -> logger.info("Processing evidence: {}", evidence.getDescription()))
+                .filter(evidence -> {
+                    try {
+                        if (evidence.getDescription().toLowerCase().contains("forged")) {
+                            throw new InvalidEvidenceException(
+                                    evidence.getDescription(),
+                                    "Forged document detected"
+                            );
+                        }
+                        return true;
+                    } catch (InvalidEvidenceException e) {
+                        logger.warn("Skipping invalid evidence: {} - Reason: {}",
+                                e.getEvidenceDescription(), e.getMessage());
+                        return false;
+                    }
+                })
+                .collect(Collectors.toList());
 
-                validEvidences.add(evidence);
-                logger.info("Accepted {} evidence: {}",
-                        evidence.getType().getDescription(),
-                        evidence.getDescription());
-
-            } catch (InvalidEvidenceException e) {
-                logger.warn("Skipping invalid evidence: {} - Reason: {}",
-                        e.getEvidenceDescription(), e.getMessage());
-            }
-        }
-
-        // Add only valid evidences to case
         validEvidences.forEach(fraudCase::addEvidence);
 
-        // Add witnesses
         logger.info("\nWITNESS LIST");
-        fraudCase.addWitness(new Witness("Jessica Pearson"));
-        fraudCase.addWitness(new Witness("Louis Litt"));
+        // Adding witnesses via Stream
+        Stream.of("Jessica Pearson", "Louis Litt")
+                .map(Witness::new)
+                .peek(witness -> logger.info("Adding witness: {}", witness.getName()))
+                .forEach(fraudCase::addWitness);
 
-        // Prepare legal documents
         logger.info("\nDOCUMENT PREPARATION");
         Document defenseBrief = secretary.draftDocument(
                 "Defense Motion to Suppress",
@@ -181,15 +175,36 @@ public class Main {
         logger.info("\nTRIAL PROCEEDINGS");
 
         try {
-            // Process case through court system
-            court.processCase(fraudCase);
+            // Process case through court system using functional interface
+            CaseProcessor caseProcessor = court::processCase;
+            caseProcessor.processCase(fraudCase);
 
             // Conduct trial and get verdict
             Verdict verdict = court.startTrial(fraudCase);
             verdict.submit();
 
             // Handle appeal if applicable
-            handleAppealProcess(verdict, secretary);
+            if (verdict.hasGroundsForAppeal()) {
+                // Create an Appealable implementation
+                Appealable appealHandler = new Appealable() {
+                    @Override
+                    public void fileAppeal(Verdict v) throws AppealFailedException {
+                        v.fileAppeal(v);  // Assuming Verdict has this method
+                    }
+
+                    @Override
+                    public boolean hasGroundsForAppeal() {
+                        return verdict.hasGroundsForAppeal();
+                    }
+                };
+
+                try {
+                    appealHandler.fileAppeal(verdict);
+                    handleAppealProcess(verdict, secretary);
+                } catch (AppealFailedException e) {
+                    logger.error("Appeal process failed: {}", e.getMessage());
+                }
+            }
 
         } catch (CourtException e) {
             logger.error("Trial process failed: {}", e.getMessage());
@@ -232,6 +247,34 @@ public class Main {
         }
     }
 
+    private static void demonstrateFunctionalInterfaces(Court court, ConcreteCase fraudCase) {
+        logger.info("\n=== FUNCTIONAL INTERFACES DEMONSTRATION ===");
+
+        // Using CaseFilter
+        CaseFilter criminalCaseFilter = c -> c.getTitle().contains("Criminal");
+        logger.info("Is fraud case criminal? {}", criminalCaseFilter.test(fraudCase));
+
+        // Using DocumentGenerator
+        DocumentGenerator briefGenerator = (title, content) -> {
+            logger.info("Generating document: {}", title);
+            return new LegalDocument(title, content);
+        };
+
+        Document motion = briefGenerator.generate("Motion to Dismiss", "Defense arguments...");
+        logger.info("Document created: {}", motion.getTitle());
+
+        // Using EvidenceAnalyzer - використовуємо getEvidenceList() замість getEvidences()
+        EvidenceAnalyzer evidenceAnalyzer = evidence -> {
+            String analysis = String.format("%s evidence: %s",
+                    evidence.getType(),
+                    evidence.getDescription());
+            logger.info(analysis);
+            return analysis;
+        };
+
+        fraudCase.getEvidenceList().forEach(evidenceAnalyzer::analyze); // Виправлено тут
+    }
+
     // Demonstrates system features including polymorphism and interface usage.
     private static void demonstrateSystemFeatures(Court court, ConcreteCase fraudCase,
                                                   Lawyer defenseAttorney, Lawyer prosecutor,
@@ -244,6 +287,8 @@ public class Main {
 
         // Interface demonstration
         demonstrateInterfaceUsage(court, fraudCase);
+
+        demonstrateFunctionalInterfaces(court, fraudCase);
     }
 
     // Demonstrates polymorphism by showing participant roles.
@@ -253,19 +298,16 @@ public class Main {
         logger.info(String.format("| %-20s | %-15s |", "Name", "Role"));
         logger.info(String.format("|%s|%s|", "-".repeat(22), "-".repeat(17)));
 
-        Person[] trialParticipants = {
+        // Using Stream to display participant information
+        Stream.of(
                 defenseAttorney,
                 prosecutor,
                 defendant,
                 judge,
                 new Witness("Rachel Zane")
-        };
-
-        for (Person participant : trialParticipants) {
-            logger.info(String.format("| %-20s | %-15s |",
-                    participant.getName(),
-                    participant.getRole()));
-        }
+        ).forEach(participant -> logger.info(String.format("| %-20s | %-15s |",
+                participant.getName(),
+                participant.getRole())));
     }
 
     // Demonstrates interface usage through CaseProcessor.
@@ -276,59 +318,72 @@ public class Main {
     }
 
     private static void demonstrateCollections() {
-        logger.info("\n=== COLLECTIONS DEMONSTRATION ===");
+        logger.info("\n=== COLLECTIONS DEMONSTRATION (WITH STREAM API) ===");
 
-        // ArrayList (already used in prepareCase)
-        List<Evidence> evidenceList = new ArrayList<>();
-        evidenceList.add(new Evidence("Document A", EvidenceType.DOCUMENT));  // Додано тип
+        // Define sample content for documents
+        String content = "Sample document content";
+
+        // ArrayList with Stream
+        List<Evidence> evidenceList = Stream.of(
+                new Evidence("Document A", EvidenceType.DOCUMENT),
+                new Evidence("Photo B", EvidenceType.PHYSICAL)
+        ).collect(Collectors.toList());
         logger.info("ArrayList size: {}", evidenceList.size());
 
-        // HashSet for unique IDs
-        Set<Integer> caseIds = new HashSet<>();
-        caseIds.add(101);
-        caseIds.add(102);
-        caseIds.add(101); // Дублікат не додасться
+        // HashSet with Stream
+        Set<Integer> caseIds = Stream.of(101, 102, 101)
+                .collect(Collectors.toSet());
         logger.info("Unique case IDs: {}", caseIds);
 
-        // HashMap for documents
-        Map<String, Document> documentRegistry = new HashMap<>();
-        documentRegistry.put("CASE-101", new LegalDocument("Contract"));
+        // HashMap with Stream
+        Map<String, Document> documentRegistry = Stream.of(
+                new AbstractMap.SimpleEntry<>("CASE-101", new LegalDocument("Contract", content)),
+                new AbstractMap.SimpleEntry<>("CASE-102", new LegalDocument("Affidavit", content))
+        ).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         logger.info("Document registry contains key 'CASE-101': {}",
                 documentRegistry.containsKey("CASE-101"));
 
-        // LinkedList as a queue
-        Queue<Document> documentQueue = new LinkedList<>();
-        documentQueue.add(new LegalDocument("Motion to Dismiss"));
+        // LinkedList as a queue with Stream
+        Queue<Document> documentQueue = Stream.of(
+                        new LegalDocument("Motion to Dismiss", content))
+                .collect(Collectors.toCollection(LinkedList::new));
         logger.info("Documents in queue: {}", documentQueue.size());
 
-        // TreeSet for sorting
-        Set<String> sortedCaseNames = new TreeSet<>();
-        sortedCaseNames.add("Zeta vs. State");
-        sortedCaseNames.add("Alpha Corp Case");
+        // TreeSet with Stream
+        Set<String> sortedCaseNames = Stream.of("Zeta vs. State", "Alpha Corp Case")
+                .collect(Collectors.toCollection(TreeSet::new));
         logger.info("Sorted case names: {}", sortedCaseNames);
     }
 
     // Method for demonstrating Generics
     private static void demonstrateGenerics() {
-        logger.info("\n=== GENERICS DEMONSTRATION ===");
+        logger.info("\n=== GENERICS DEMONSTRATION (WITH LAMBDAS) ===");
 
-        // Using own LinkedList
+        // Using lambda to create witnesses
         CustomLinkedList<Witness> witnessList = new CustomLinkedList<>();
-        witnessList.add(new Witness("John Doe"));
-        witnessList.add(new Witness("Jane Smith"));
+        Stream.of("John Doe", "Jane Smith")
+                .map(Witness::new)
+                .forEach(witnessList::add);
         logger.info("First witness: {}", witnessList.get(0).getName());
 
-        // CaseArchive for archiving cases
+        // Using Lambda for archiving cases
         CaseArchive<ConcreteCase> caseArchive = new CaseArchive<>();
-        ConcreteCase sampleCase = new ConcreteCase("Sample Case", new Client("Test Client"),
-                new Lawyer("Test Lawyer", 10, 5));
-        caseArchive.archiveCase(sampleCase);
+        Stream.of(
+                new ConcreteCase("Sample Case 1", new Client("Client A"),
+                        new Lawyer("Lawyer X", 10, 5)),
+                new ConcreteCase("Sample Case 2", new Client("Client B"),
+                        new Lawyer("Lawyer Y", 8, 4))
+        ).forEach(caseArchive::archiveCase);
         logger.info("Archived case title: {}", caseArchive.retrieveCase(0).getTitle());
 
-        // EvidenceProcessor for processing evidence
+        // Using lambdas for proof processing
         EvidenceProcessor<Evidence> evidenceProcessor = new EvidenceProcessor<>();
-        evidenceProcessor.processEvidence(new Evidence("DNA Sample", EvidenceType.PHYSICAL));  // Added type
-        // LegalContainer for object pairing
+        Stream.of(
+                new Evidence("DNA Sample", EvidenceType.PHYSICAL),
+                new Evidence("Email", EvidenceType.DIGITAL)
+        ).forEach(evidenceProcessor::processEvidence);
+
+        // Using lambda to create legal pairs
         LegalContainer<Lawyer, Client> legalPair = new LegalContainer<>(
                 new Lawyer("Generic Lawyer", 5, 3),
                 new Client("Generic Client")

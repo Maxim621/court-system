@@ -4,14 +4,16 @@ pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup
 pom.xml.next
+*.jar
+*.war
+*.ear
 
 # IDE
 .idea/
 *.iml
+*.ipr
 *.iws
 
 # Logs
 *.log
-
-# Output files
-analysis_results.txt
+*.tmp

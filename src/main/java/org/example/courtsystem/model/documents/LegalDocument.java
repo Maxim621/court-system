@@ -2,7 +2,7 @@ package org.example.courtsystem.model.documents;
 
 // LegalDocument represents a general court document
 public class LegalDocument extends Document {
-    public LegalDocument(String title) {
+    public LegalDocument(String title, String content) {
         super(title);
     }
 

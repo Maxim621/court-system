@@ -52,7 +52,7 @@ public class LegalSecretary implements DocumentDraftable {
         }
 
         String fullTitle = "[DRAFT] " + title + ": " + content;
-        Document doc = new LegalDocument(fullTitle);
+        Document doc = new LegalDocument(fullTitle, content);
         addToQueue(doc); // Тепер метод використовується
         return doc;
     }
