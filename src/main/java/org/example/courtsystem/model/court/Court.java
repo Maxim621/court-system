@@ -80,7 +80,7 @@ public class Court extends LegalEntity implements CaseProcessor {
             throw new InvalidEvidenceException("null", "Null evidence in list");
         }
 
-        String description = evidence.getDescription();
+        String description = evidence.description();
         if (description == null || description.isEmpty()) {
             throw new InvalidEvidenceException(description, "Empty evidence description");
         }
@@ -94,7 +94,7 @@ public class Court extends LegalEntity implements CaseProcessor {
         evidence.forEach(e -> {
             try {
                 if (!validator.validateEvidence(e)) {
-                    logger.warn("Evidence rejected by validator: {}", e.getDescription());
+                    logger.warn("Evidence rejected by validator: {}", e.description());
                 }
             } catch (InvalidEvidenceException ex) {
                 logger.error("Evidence validation failed: {}", ex.getMessage());

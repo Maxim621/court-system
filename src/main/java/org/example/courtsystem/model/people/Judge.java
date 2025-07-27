@@ -17,7 +17,7 @@ public class Judge extends CourtMember implements EvidenceValidator {
 
     // Sorted collection of evidence maintained by the judge
     private final SortedSet<Evidence> sortedEvidence = new TreeSet<>(
-            Comparator.comparing(Evidence::getDescription)
+            Comparator.comparing(Evidence::description)
     );
 
     // Retrieves a copy of the judge's sorted evidence collection
@@ -29,7 +29,7 @@ public class Judge extends CourtMember implements EvidenceValidator {
     public void addEvidence(Evidence evidence) throws InvalidEvidenceException {
         validateEvidence(evidence); // Will throw exception if invalid
         sortedEvidence.add(evidence);
-        logger.debug("Judge {} added evidence: {}", name, evidence.getDescription());
+        logger.debug("Judge {} added evidence: {}", name, evidence.description());
     }
 
     // Creates a new Judge instance
@@ -91,7 +91,7 @@ public class Judge extends CourtMember implements EvidenceValidator {
             throw new InvalidEvidenceException("null");
         }
 
-        String description = evidence.getDescription();
+        String description = evidence.description();
         if (description == null || description.trim().isEmpty()) {
             logger.warn("Empty evidence description");
             throw new InvalidEvidenceException("Empty description");

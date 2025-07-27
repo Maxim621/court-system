@@ -1,11 +1,18 @@
 package org.example.courtsystem.model.cases;
 
+import org.example.courtsystem.annotations.CaseMetadata;
 import org.example.courtsystem.model.people.Client;
 import org.example.courtsystem.model.people.Lawyer;
 import org.example.courtsystem.model.people.Witness;
 
 import java.util.ArrayList;
 import java.util.List;
+
+@CaseMetadata(
+        author = "LegalSystemTeam",
+        creationDate = "2025-07-27",
+        version = 2
+)
 
 // ConcreteCase represents a legal dispute between a client and the court
 public class ConcreteCase extends Case {

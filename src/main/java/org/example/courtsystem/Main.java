@@ -1,10 +1,11 @@
 package org.example.courtsystem;
 
+import org.example.courtsystem.annotations.AuthorAnnotation;
 import org.example.courtsystem.custom.collections.CustomLinkedList;
 import org.example.courtsystem.exceptions.*;
 import org.example.courtsystem.generics.CaseArchive;
 import org.example.courtsystem.generics.EvidenceProcessor;
-import org.example.courtsystem.generics.LegalContainer;
+import org.example.courtsystem.generics.LegalPair;
 import org.example.courtsystem.interfaces.*;
 import org.example.courtsystem.model.CaseStatus;
 import org.example.courtsystem.model.CourtType;
@@ -17,16 +18,22 @@ import org.example.courtsystem.model.documents.LegalDocument;
 import org.example.courtsystem.model.documents.Verdict;
 import org.example.courtsystem.model.people.*;
 import org.example.courtsystem.model.services.LegalSecretary;
+import org.example.courtsystem.util.AnnotationProcessor;
 import org.example.courtsystem.util.DocumentAnalyzer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.util.*;
-
+import java.lang.reflect.InvocationTargetException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+@AuthorAnnotation(
+        author = "CourtSystemTeam",
+        date = "2025-07-27",
+        description = "Main application class for court system simulation"
+)
 // Main class demonstrating the court case simulation with full exception handling
 public class Main {
     private static final Logger logger = LogManager.getLogger(Main.class);
@@ -41,6 +48,7 @@ public class Main {
             initializeLegalSystem();
             demonstrateCollections();
             demonstrateGenerics();
+            demonstrateAnnotations();
         } catch (CourtException e) {
             logger.fatal("Critical system initialization error: {}", e.getMessage());
         }
@@ -61,6 +69,25 @@ public class Main {
             logger.info("Document analysis completed. Results saved to analysis_results.txt");
         } catch (IOException e) {
             logger.error("Error analyzing document: {}", e.getMessage());
+        }
+    }
+
+    private static void demonstrateAnnotations() {
+        try {
+            logger.info("\n=== ANNOTATION DEMONSTRATION ===");
+
+            // Demonstration of class annotations
+            AnnotationProcessor.processAnnotations(ConcreteCase.class);
+
+            // Demonstration of annotations for the Main class itself
+            AnnotationProcessor.processAnnotations(Main.class);
+
+            // Demonstration of working with record
+            Evidence sampleEvidence = new Evidence("Test Record", EvidenceType.DOCUMENT);
+            logger.info("Evidence record created: {}", sampleEvidence);
+
+        } catch (Exception e) {
+            logger.error("Annotation processing failed: {}", e.getMessage());
         }
     }
 
@@ -131,12 +158,12 @@ public class Main {
 
         // Replacing a loop with a Stream API
         List<Evidence> validEvidences = Stream.of(evidencesToProcess)
-                .peek(evidence -> logger.info("Processing evidence: {}", evidence.getDescription()))
+                .peek(evidence -> logger.info("Processing evidence: {}", evidence.description()))
                 .filter(evidence -> {
                     try {
-                        if (evidence.getDescription().toLowerCase().contains("forged")) {
+                        if (evidence.description().toLowerCase().contains("forged")) {
                             throw new InvalidEvidenceException(
-                                    evidence.getDescription(),
+                                    evidence.description(),
                                     "Forged document detected"
                             );
                         }
@@ -263,16 +290,16 @@ public class Main {
         Document motion = briefGenerator.generate("Motion to Dismiss", "Defense arguments...");
         logger.info("Document created: {}", motion.getTitle());
 
-        // Using EvidenceAnalyzer - використовуємо getEvidenceList() замість getEvidences()
+        // Using EvidenceAnalyzer - use getEvidenceList() instead of getEvidences()
         EvidenceAnalyzer evidenceAnalyzer = evidence -> {
             String analysis = String.format("%s evidence: %s",
-                    evidence.getType(),
-                    evidence.getDescription());
+                    evidence.type(),
+                    evidence.description());
             logger.info(analysis);
             return analysis;
         };
 
-        fraudCase.getEvidenceList().forEach(evidenceAnalyzer::analyze); // Виправлено тут
+        fraudCase.getEvidenceList().forEach(evidenceAnalyzer::analyze);
     }
 
     // Demonstrates system features including polymorphism and interface usage.
@@ -384,13 +411,13 @@ public class Main {
         ).forEach(evidenceProcessor::processEvidence);
 
         // Using lambda to create legal pairs
-        LegalContainer<Lawyer, Client> legalPair = new LegalContainer<>(
+        LegalPair<Lawyer, Client> legalPair = new LegalPair<>(
                 new Lawyer("Generic Lawyer", 5, 3),
                 new Client("Generic Client")
         );
         logger.info("Legal pair: {} defends {}",
-                legalPair.getItem1().getName(),
-                legalPair.getItem2().getName());
+                legalPair.lawyer().getName(),
+                legalPair.client().getName());
     }
 
     // Static initializer block - runs when class is loaded
