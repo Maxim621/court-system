@@ -22,10 +22,15 @@ import org.example.courtsystem.util.AnnotationProcessor;
 import org.example.courtsystem.util.DocumentAnalyzer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.example.courtsystem.threads.CaseProcessorThread;
+import org.example.courtsystem.util.CourtLogger;
 
 import java.io.IOException;
 import java.util.*;
 import java.lang.reflect.InvocationTargetException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -49,6 +54,7 @@ public class Main {
             demonstrateCollections();
             demonstrateGenerics();
             demonstrateAnnotations();
+            demonstrateThreadsAndSingleton();
         } catch (CourtException e) {
             logger.fatal("Critical system initialization error: {}", e.getMessage());
         }
@@ -418,6 +424,43 @@ public class Main {
         logger.info("Legal pair: {} defends {}",
                 legalPair.lawyer().getName(),
                 legalPair.client().getName());
+    }
+
+    private static void demonstrateThreadsAndSingleton() {
+        CourtLogger logger = CourtLogger.getInstance();
+        logger.logEvent("Starting multi-threaded case processing demonstration");
+
+        // Create several cases for processing
+        ConcreteCase[] cases = {
+                new ConcreteCase("State vs. Johnson", new Client("Mike Johnson"),
+                        new Lawyer("Sarah Connor", 10, 8)),
+                new ConcreteCase("State vs. Smith", new Client("John Smith"),
+                        new Lawyer("Bob Builder", 15, 12)),
+                new ConcreteCase("State vs. Williams", new Client("Alice Williams"),
+                        new Lawyer("Lisa Ray", 8, 5))
+        };
+
+        // Creating a thread pool
+        ExecutorService executor = Executors.newFixedThreadPool(3);
+
+        try {
+            // Start processing each case in a separate thread
+            for (ConcreteCase courtCase : cases) {
+                executor.execute(new CaseProcessorThread(courtCase));
+            }
+        } finally {
+            executor.shutdown();
+            try {
+                if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                executor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        logger.logEvent("All cases submitted for processing");
     }
 
     // Static initializer block - runs when class is loaded
